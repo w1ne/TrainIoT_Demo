@@ -43,7 +43,9 @@ def on_message_location_power(client, userdata, message):
    current_power = message.payload.decode()
 
 mqttc = mqtt.Client()
-mqttc.connect("49.12.32.132", 1883, 60)
+#mqttc.tls_set(ca_certs="ca.crt")
+#mqttc.tls_insecure_set(True)
+mqttc.connect("49.12.32.132", 1883, 60) #49.12.32.132
 
 mqttc.message_callback_add("loco/location/lat", on_message_location_lat)
 mqttc.message_callback_add("loco/location/lng", on_message_location_lng)
@@ -184,7 +186,7 @@ def displayClick(btn1, btn2, btn3, btn4):
         msg = "Engine MAX"
         mqttc.publish("loco/control/motor/power", 255)
     elif "btn-nclicks-ehalf" == ctx.triggered_id:
-        msg = "Engine 75%"
+        msg = "Engi ne 75%"
         mqttc.publish("loco/control/motor/power", 150)
     return html.Div(msg)
 # -----------------------------------------------------------------------------

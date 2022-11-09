@@ -6,15 +6,44 @@
 #include <WiFi.h> 
 #include <PubSubClient.h>
 #include "Wire.h"
+#include <WebServer.h>
+#include <motor.h>
+
+/*
+TODO refractor it and separate in different modules, too crowdy
+*/
+
+#define SECURE_MQTT // Comment this line if you are not using MQTT over SSL
+
+#ifdef SECURE_MQTT
+#include "esp_tls.h"
+
+// Let's Encrypt CA certificate. Change with the one you need
+static const unsigned char DSTroot_CA[] PROGMEM = R"EOF(
+-----BEGIN CERTIFICATE-----
+MIIDSjCCAjKgAwIBAgIQRK+wgNajJ7qJMDmGLvhAazANBgkqhkiG9w0BAQUFADA/
+MSQwIgYDVQQKExtEaWdpdGFsIFNpZ25hdHVyZSBUcnVzdCBDby4xFzAVBgNVBAMT
+DkRTVCBSb290IENBIFgzMB4XDTAwMDkzMDIxMTIxOVoXDTIxMDkzMDE0MDExNVow
+PzEkMCIGA1UEChMbRGlnaXRhbCBTaWduYXR1cmUgVHJ1c3QgQ28uMRcwFQYDVQQD
+Ew5EU1QgUm9vdCBDQSBYMzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
+AN+v6ZdQCINXtMxiZfaQguzH0yxrMMpb7NnDfcdAwRgUi+DoM3ZJKuM/IUmTrE4O
+rz5Iy2Xu/NMhD2XSKtkyj4zl93ewEnu1lcCJo6m67XMuegwGMoOifooUMM0RoOEq
+OLl5CjH9UL2AZd+3UWODyOKIYepLYYHsUmu5ouJLGiifSKOeDNoJjj4XLh7dIN9b
+xiqKqy69cK3FCxolkHRyxXtqqzTWMIn/5WgTe1QLyNau7Fqckh49ZLOMxt+/yUFw
+7BZy1SbsOFU5Q9D8/RhcQPGX69Wam40dutolucbY38EVAjqr2m7xPi71XAicPNaD
+aeQQmxkqtilX4+U9m5/wAl0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNV
+HQ8BAf8EBAMCAQYwHQYDVR0OBBYEFMSnsaR7LHH62+FLkHX/xBVghYkQMA0GCSqG
+SIb3DQEBBQUAA4IBAQCjGiybFwBcqR7uKGY3Or+Dxz9LwwmglSBd49lZRNI+DT69
+ikugdB/OEIKcdBodfpga3csTS7MgROSR6cz8faXbauX+5v3gTt23ADq1cEmv8uXr
+AvHRAosZy5Q6XkjEGB5YGV8eAlrwDPGxrancWYaLbumR9YbK+rlmM6pZW87ipxZz
+R8srzJmwN0jP41ZL9c8PDHIyh8bwRLtTcm1D9SZImlJnt1ir/md2cXjbDaJWFBM5
+JDGFoqgCWjBH4d1QB7wCCZAA62RjYJsWvIjJEubSfZGL+T0yjWW06XyxV3bqxbYo
+Ob8VZRzI9neWagqNdwvYkQsEjgfbKbYK7p2CNTUQ
+-----END CERTIFICATE-----
+)EOF";
+#endif // SECURE_MQTT
 
 INA219 INA(0x40);
-
-#define RXp2 16
-#define TXp2 17
-
-// Motor
-int motorPin = 27; 
-int pwmPin = 14; 
 
 // Setting PWM properties
 const int freq = 8000;
@@ -25,6 +54,7 @@ const int resolution = 8;
 // Replace the next variables with your SSID/Password combination
 const char* ssid = "DemoIoT";
 const char* password = "DemoIoT1";
+
 /*MQTT broker*/
 //MQTT Broker IP address:
 const char* mqtt_server = "49.12.32.132";
@@ -37,56 +67,43 @@ long lastMsg = 0;
 char msg[50];
 int value = 0;
 
-
 void displayInfo();
 void sendGeo();
 void setup_wifi();
 void reconnect();
+void setClock();
 void callback(char* topic, byte* message, unsigned int length);
 
 // The TinyGPSPlus object
 TinyGPSPlus gps;
+// DC Motor object
+DCmotor motor;
 
 void setup() {
   Serial.begin(115200);
-  Serial2.begin(9600, SERIAL_8N1, RXp2, TXp2);
+  Serial2.begin(9600, SERIAL_8N1, GPS_RX_UART_PIN, GPS_TX_UART_PIN);
+  
+  DCmotor.begin(MOTOR_PIN, PWM_MOTOR_PIN, pwmChannel, freq, resolution);
 
   if (!INA.begin() )
   {
     Serial.println("could not connect. Fix and Reboot");
   }
+
   INA.setMaxCurrentShunt(2.5, 0.002);
 
   setup_wifi();
 
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
-
-  //Motor
-  pinMode(motorPin, OUTPUT);
-  pinMode(pwmPin, OUTPUT);
-
-  // configure LED PWM functionalitites
-  ledcSetup(pwmChannel, freq, resolution);
-  
-  // attach the channel to the GPIO to be controlled
-  ledcAttachPin(pwmPin, pwmChannel);
 }
 
 // For stats that happen every 5 seconds
 unsigned long last = 0UL;
-static uint32_t dutyCycle = 0;
+
 void loop() {
-  if (MotorState == true)
-  {
-    digitalWrite(motorPin, LOW);
-    ledcWrite(pwmChannel, dutyCycle); 
-  }
-  else
-  {
-    digitalWrite(motorPin, LOW);
-    ledcWrite(pwmChannel, 0); 
-  }
+
+  DCmotor.motor_update();
   // This sketch displays information every time a new sentence is correctly encoded.
   while (Serial2.available() > 0)
   {
@@ -102,7 +119,8 @@ void loop() {
     Serial.println(F("No GPS detected: check wiring."));
     while(true);
   }
-    if (!client.connected()) {
+  
+  if (!client.connected()) {
     reconnect();
   }
   client.loop();
@@ -289,6 +307,24 @@ void callback(char* topic, byte* message, unsigned int length) {
     MotorState = true;
     dutyCycle = messageTemp.toInt();
   }
+}
+
+void setClock()
+{
+  configTime(3 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+
+  Serial.print("Waiting for NTP time sync: ");
+  time_t now = time(nullptr);
+  while (now < 8 * 3600 * 2) {
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+  }
+  Serial.println("");
+  struct tm timeinfo;
+  gmtime_r(&now, &timeinfo);
+  Serial.print("Current time: ");
+  Serial.print(asctime(&timeinfo));
 }
 
 void reconnect() {
