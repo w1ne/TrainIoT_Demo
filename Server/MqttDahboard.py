@@ -184,7 +184,7 @@ def displayClick(btn1, btn2, btn3, btn4):
         msg = "Engine MAX"
         mqttc.publish("loco/control/motor/power", 255)
     elif "btn-nclicks-ehalf" == ctx.triggered_id:
-        msg = "Engine 75%"
+        msg = "Engi ne 75%"
         mqttc.publish("loco/control/motor/power", 150)
     return html.Div(msg)
 # -----------------------------------------------------------------------------
