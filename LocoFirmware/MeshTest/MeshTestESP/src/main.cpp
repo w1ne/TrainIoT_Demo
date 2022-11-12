@@ -2,8 +2,8 @@
 #include <LoRa.h>
 
 //define the pins used by the transceiver module
-#define ss 5
-#define rst 14
+#define ss 4
+#define rst 33
 #define dio0 26
 
 int counter = 0;
@@ -17,6 +17,7 @@ void setup() {
   // put the right pin numbers or -1 for default. On my TTGO it's 5, 19, 27, 18
   int counter = 0;
   LoRa.setPins(ss, rst, dio0);
+
   while (!LoRa.begin(433E6) && counter < 10) 
   {
     Serial.print(".");
@@ -28,10 +29,15 @@ void setup() {
     // Increment readingID on every new reading
     Serial.println("Starting LoRa failed!"); 
   }
+  else
+  {
+    Serial.println("Lora started!"); 
+    LoRa.setSyncWord(0xF3);
+  }
 }
 
 void loop() {
-  // try to parse packet
+    // try to parse packet
   int packetSize = LoRa.parsePacket();
   if (packetSize) {
     // received a packet
@@ -39,7 +45,8 @@ void loop() {
 
     // read packet
     while (LoRa.available()) {
-      Serial.print((char)LoRa.read());
+      String LoRaData = LoRa.readString();
+      Serial.print(LoRaData); 
     }
 
     // print RSSI of packet

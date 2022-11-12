@@ -7,7 +7,8 @@
 #include <PubSubClient.h>
 #include "Wire.h"
 #include <WebServer.h>
-#include <motor.h>
+#include "pins.h"
+#include "motor.h"
 
 /*
 TODO refractor it and separate in different modules, too crowdy
@@ -58,8 +59,6 @@ const char* password = "DemoIoT1";
 /*MQTT broker*/
 //MQTT Broker IP address:
 const char* mqtt_server = "49.12.32.132";
-static bool MotorState = false;
-
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -77,13 +76,13 @@ void callback(char* topic, byte* message, unsigned int length);
 // The TinyGPSPlus object
 TinyGPSPlus gps;
 // DC Motor object
-DCmotor motor;
+Motor dcMotor;
 
 void setup() {
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1, GPS_RX_UART_PIN, GPS_TX_UART_PIN);
   
-  DCmotor.begin(MOTOR_PIN, PWM_MOTOR_PIN, pwmChannel, freq, resolution);
+  dcMotor.begin(MOTOR_PIN, PWM_MOTOR_PIN, pwmChannel, freq, resolution);
 
   if (!INA.begin() )
   {
@@ -103,7 +102,7 @@ unsigned long last = 0UL;
 
 void loop() {
 
-  DCmotor.motor_update();
+  dcMotor.update();
   // This sketch displays information every time a new sentence is correctly encoded.
   while (Serial2.available() > 0)
   {
@@ -296,16 +295,16 @@ void callback(char* topic, byte* message, unsigned int length) {
     Serial.print("Changing motor state to ");
     if(messageTemp == "on"){
       Serial.println("on");
-      MotorState = true;
+      dcMotor.enable();
     }
     else if(messageTemp == "off"){
       Serial.println("off");
-      MotorState = false;
+      dcMotor.disable();
     }
   }
   if (String(topic) == "loco/control/motor/power") {
-    MotorState = true;
-    dutyCycle = messageTemp.toInt();
+    int motorSpeed = messageTemp.toInt();
+    dcMotor.set_speed(motorSpeed);
   }
 }
 

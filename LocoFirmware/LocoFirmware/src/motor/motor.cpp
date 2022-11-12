@@ -10,88 +10,89 @@
  */
 
 #include <Arduino.h>
-#include <motor.h>
+#include "motor.h"
 
-static hwconf(motorconf *motor_config_t);
+void hwconf(int directionPin, int PwmPin, int PwmChannel, int frequency, int resolution);
 
-motor_status_t motor::begin(int motorDirectionPin, int motorPWMpin, int pwmChannel, int frequency, int resolution)
+motor_status_t Motor::begin(int directionPin, int PWMpin, int pwmChannel, int frequency, int resolution)
 {
   //Motor setup
-  motor_config.directionPin = motorDirectionPin;
-  motor_config.pwmPin = motorPWMpin;
-  motor_config.pwmChannel = pwmChannel;
-  motor_config.frequency = frequency;
-  motor_config.resolution = resolution;
-  motor_config.motor_direction = MOTOR_FORWARD_DIR;
-  motor_config.motor_speed = 0;
+  motorDirectionPin = directionPin;
+  motorPwmPin = PWMpin;
+  motorPwmChannel = pwmChannel;
+  motorFrequency = frequency;
+  motorResolution = resolution;
+  motorDirection = MOTOR_FORWARD_DIR;
+  motorSpeed = 0;
 
-  hwconf(&motorconf);
-  motor_config.motor_status = MOTOR_INIT_STATE;
+  hwconf(motorDirectionPin, motorPwmPin, motorPwmChannel, motorFrequency, motorResolution);
+  motorStatus = MOTOR_INIT_STATE;
 
-  return motor_config.motor_status;
+  return motorStatus;
 }
 //We need at least motor pin and pwm pin. We can assume PWM channel, frequency and resolution.
-motor_status_t motor::begin(int motorDirectionPin, int motorPWMpin)
+motor_status_t Motor::begin(int DirectionPin, int PWMpin)
 {
   //Motor setup
-  motor_config.directionPin = motorDirectionPin;
-  motor_config.pwmPin = motorPWMpin;
-  motor_config.pwmChannel = MOTOR_DEFAULT_PWM_CHANNEL;
-  motor_config.frequency = MOTOR_DEFAULT_PWM_FREQ;
-  motor_config.resolution = MOTOR_DEFAULT_PWM_RESOLUTION;
-  motor_config.motor_direction = MOTOR_FORWARD_DIR;
-  motor_config.motor_speed = 0;
+  motorDirectionPin = motorDirectionPin;
+  motorPwmPin = PWMpin;
+  motorPwmChannel = MOTOR_DEFAULT_PWM_CHANNEL;
+  motorFrequency = MOTOR_DEFAULT_PWM_FREQ;
+  motorResolution = MOTOR_DEFAULT_PWM_RESOLUTION;
+  motorDirection = MOTOR_FORWARD_DIR;
+  motorSpeed = 0;
 
   //Motor setup
-  hwconf(&motorconf);
-  motor_config.motor_status = MOTOR_INIT_STATE;
+  hwconf(motorDirectionPin, motorPwmPin, motorPwmChannel, motorFrequency, motorResolution);
+  motorStatus = MOTOR_INIT_STATE;
 
-  return motor_config.motor_status;
+  return motorStatus;
 }
 
-bool motor::enable()
+bool Motor::enable()
 {
-    motor_config.motor_status = MOTOR_RUNNING;
+    motorStatus = MOTOR_RUNNING;
     return true;
 };
 
-bool motor::disable()
+bool Motor::disable()
 {
-    motor_config.motor_status = MOTOR_STOP;
+    motorStatus = MOTOR_STOP;
     return true;
 };
 
-bool motor::set_direction(motor_direction_t direction)
+bool Motor::set_direction(motor_direction_t directionToSet)
 {
-    motor_config.motor_direction = direction;
+    motorDirection = directionToSet;
     return true;
 };
 
-bool motor::set_speed(unsigned int speed)
+bool Motor::set_speed(unsigned int speedToSet)
 {
-    motor_config.motor_speed = speed; 
+    motorSpeed = speedToSet; 
     return true;
 };
 
-motor_status_t update()
+motor_status_t Motor::update()
 {
-  if (motor_config.motor_status == MOTOR_RUNNING)
+  if (motorStatus == MOTOR_RUNNING)
   {
-    digitalWrite(motor_conf->directionPin, motor_conf->motor_direction);
-    ledcWrite(motor_conf->pwmChannel, motor_conf->motor_speed); 
+    digitalWrite(motorDirectionPin, bool(motorDirection));
+    ledcWrite(motorPwmChannel, motorSpeed); 
   }
   else
   {
-    ledcWrite(motor_conf->pwmChannel, 0); 
+    ledcWrite(motorPwmChannel, 0); 
   }
-};
+return motorStatus;
+}
 
-static hwconf(motorconf *motor_config_t);
+void hwconf(int directionPin, int PwmPin, int PwmChannel, int frequency, int resolution)
 {
-  pinMode(motorconf->directionPin, OUTPUT);
-  pinMode(motorconf->pwmPin, OUTPUT);
+  pinMode(directionPin, OUTPUT);
+  pinMode(PwmPin, OUTPUT);
   // configure LED PWM lib to use with motor speed
-  ledcSetup(motorconf->pwmChannel, motorconf->frequency, motorconf->resolution);
+  ledcSetup(PwmChannel, frequency, resolution);
   // attach the channel to the GPIO to be controlled
-  ledcAttachPin(motorconf->pwmPin, motorconf->pwmChannel);
+  ledcAttachPin(PwmPin, PwmChannel);
 }

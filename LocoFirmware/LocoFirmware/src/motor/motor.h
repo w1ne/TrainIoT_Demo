@@ -1,13 +1,9 @@
-/*
- ESP8266WiFiSTA.h - esp8266 Wifi support.
- */
-
 #ifndef MOTOR_H_
 #define MOTOR_H_
 
-#define MOTOR_DEFAULT_PWM_CHANNEL    = 0u
-#define MOTOR_DEFAULT_PWM_FREQ       = 8000u
-#define MOTOR_DEFAULT_PWM_RESOLUTION = 256u
+#define MOTOR_DEFAULT_PWM_CHANNEL    0u
+#define MOTOR_DEFAULT_PWM_FREQ       8000u
+#define MOTOR_DEFAULT_PWM_RESOLUTION 256u
 
 typedef enum {
     MOTOR_NOT_CONFIGURED = 255,
@@ -21,12 +17,12 @@ typedef enum {
     MOTOR_BACK_DIR       = 1,
 } motor_direction_t;
 
-class motor
+class Motor
 {
 public:
 
-    motor_status_t begin(int motorDirectionPin, int motorPWMpin, int pwmChannel, int frequency, int resolution);
-    motor_status_t begin(int motorDirectionPin, int motorPWMpin);
+    motor_status_t begin(int directionPin, int PWMpin, int pwmChannel, int frequency, int resolution);
+    motor_status_t begin(int directionPin, int PWMpin);
 
     bool enable();
     bool disable();
@@ -34,18 +30,15 @@ public:
     bool set_speed(unsigned int speed);
     motor_status_t update();
 
-protected:
-    /* Do we need this protected? Currently we do not use feedback from the motor, and this data represents only values set by the module */
-    struct motor_config{
-        int directionPin = 0;
-        int pwmPin = 0;
-        int pwmChannel = MOTOR_DEFAULT_PWM_CHANNEL;
-        int frequency = MOTOR_DEFAULT_PWM_FREQ;
-        int resolution = MOTOR_DEFAULT_PWM_RESOLUTION;
-        motor_status_t motor_status = MOTOR_NOT_CONFIGURED;
-        motor_direction_t motor_direction = MOTOR_FORWARD_DIR;
-        int motor_speed = 0;
-    };
+private:
+    int motorDirectionPin = 0;
+    int motorPwmPin = 0;
+    int motorPwmChannel = MOTOR_DEFAULT_PWM_CHANNEL;
+    int motorFrequency = MOTOR_DEFAULT_PWM_FREQ;
+    int motorResolution = MOTOR_DEFAULT_PWM_RESOLUTION;
+    motor_status_t motorStatus = MOTOR_NOT_CONFIGURED;
+    motor_direction_t motorDirection = MOTOR_FORWARD_DIR;
+    int motorSpeed = 0;
 };
 
 #endif

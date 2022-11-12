@@ -3,6 +3,13 @@
 #include <WebServer.h>
 #include <ArduinoJson.h>
 
+static int  webserver_dcspeed = 0;
+static int  webserver_dcdirection = 0;
+static bool webserver_dcswitch = false; 
+static int  webserver_power = 0;
+
+static void setup_routing();
+
 // Web server running on port 80
 WebServer server(80);
  
@@ -10,14 +17,34 @@ WebServer server(80);
 StaticJsonDocument<250> jsonDocument;
 char buffer[250];
 
-void setup_routing() {	 	  
+void webserver_setup() {
+  setup_routing(); 	 	 
+}	 	 
+  	 	 
+void webserver_update() {	 	 
+  server.handleClient();	 	 
+}
+
+void webserver_setPower(int power)
+{ 
+  webserver_power = power;
+}
+
+void webserver_getMotor(int *dcspeed, int *dcdirection, bool *dcswitch)
+{
+  *dcspeed = webserver_dcspeed;
+  *dcdirection = webserver_dcdirection;
+  *dcswitch = webserver_dcswitch;
+}
+/* private functions*/
+static void setup_routing() {	 	  
   server.on("/power", getPower);	 	 
-  server.on("/led", HTTP_POST, handlePost);	 	 
+  server.on("/motor", HTTP_POST, handlePost);	 	 
   // start server	 	 
   server.begin();	 	 
 }
- 
-void create_json(char *tag, float value, char *unit) {  
+
+static void create_json(char *tag, float value, char *unit) {  
   jsonDocument.clear();  
   jsonDocument["type"] = tag;
   jsonDocument["value"] = value;
@@ -25,48 +52,31 @@ void create_json(char *tag, float value, char *unit) {
   serializeJson(jsonDocument, buffer);
 }
  
-void add_json_object(char *tag, float value, char *unit) {
+static void add_json_object(char *tag, float value, char *unit) {
   JsonObject obj = jsonDocument.createNestedObject();
   obj["type"] = tag;
   obj["value"] = value;
   obj["unit"] = unit; 
 }
  
-void getPower() {
+static void getPower() {
   Serial.println("Get power");
-  create_json("power", temperature, "mW");
+  create_json("power", power, "mW");
   server.send(200, "application/json", buffer);
 }
- 
-/*void getEnv() {
-  Serial.println("Get env");
-  jsonDocument.clear();
-  add_json_object("temperature", temperature, "°C");
-  add_json_object("humidity", humidity, "%");
-  add_json_object("pressure", pressure, "mBar");
-  serializeJson(jsonDocument, buffer);
-  server.send(200, "application/json", buffer);
-}
-*/
 
-void setup_task() {	 	 
-  xTaskCreate(	 	 
-  read_sensor_data, 	 	 
-  "Read sensor data", 	 	 
-  1000, 	 	 
-  NULL, 	 	 
-  1, 	 	 
-  NULL 	 	 
-  );	 	 
-}
-void setup() {	 	 
-  connectToWiFi();	 	 
-  setup_task();	 	 
-  setup_routing(); 	 	 
-  // Initialize Neopixel	 	 
-  pixels.begin();	 	 
-}	 	 
-  	 	 
-void loop() {	 	 
-  server.handleClient();	 	 
+static void handlePost() {
+  if (server.hasArg("plain") == false) {
+    //handle error here
+  }
+  String body = server.arg("plain");
+  deserializeJson(jsonDocument, body);
+  
+  // Get RGB components
+  int webserver_dcspeed = jsonDocument["speed"];
+  int webserver_dcdirection = jsonDocument["direction"];
+  int webserver_dcswitch = jsonDocument["switch"];
+
+  // Respond to the client
+  server.send(200, "application/json", "{}");
 }

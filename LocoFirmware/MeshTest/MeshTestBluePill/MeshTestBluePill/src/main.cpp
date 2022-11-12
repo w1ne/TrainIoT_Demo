@@ -24,7 +24,7 @@ void setup() {
   //433E6 for Asia
   //866E6 for Europe
   //915E6 for North America
-  while (!LoRa.begin(866E6)) {
+  while (!LoRa.begin(433E6)) {
     Serial.println(".");
     delay(500);
   }
@@ -35,21 +35,19 @@ void setup() {
   Serial.println("LoRa Initializing OK!");
 }
 
+int counter = 0;
+
 void loop() {
-  // try to parse packet
-  int packetSize = LoRa.parsePacket();
-  if (packetSize) {
-    // received a packet
-    Serial.print("Received packet '");
+  Serial.print("Sending packet: ");
+  Serial.println(counter);
 
-    // read packet
-    while (LoRa.available()) {
-      String LoRaData = LoRa.readString();
-      Serial.print(LoRaData); 
-    }
+  //Send LoRa packet to receiver
+  LoRa.beginPacket();
+  LoRa.print("hello ");
+  LoRa.print(counter);
+  LoRa.endPacket();
 
-    // print RSSI of packet
-    Serial.print("' with RSSI ");
-    Serial.println(LoRa.packetRssi());
-  }
+  counter++;
+
+  delay(5000);
 }
