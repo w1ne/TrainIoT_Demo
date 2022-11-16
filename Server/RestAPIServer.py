@@ -44,14 +44,12 @@ def mqtt_motorpwm(post_id):
   mqttc.publish("loco/control/motor/power", post_id)
   return str(post_id)
 
-@app.route('/loco/motor/enable/<int:post_id>', methods=['POST'])
-def mqtt_motorenable(post_id):
-  qttc.publish("loco/control/motor/switch","on")
-  return str(post_id)
-
-@app.route('/loco/motor/disable/<int:post_id>', methods=['POST'])
-def mqtt_motordisable(post_id):
-  mqttc.publish("loco/control/motor/switch","off")
+@app.route('/loco/motor/state/<int:post_id>', methods=['POST'])
+def mqtt_motorstate(post_id):
+  if post_id >= 1:
+    qttc.publish("loco/control/motor/switch","on")
+  else: 
+    qttc.publish("loco/control/motor/switch","off")
   return str(post_id)
 
 # -----------------------------------------------------------------------------
