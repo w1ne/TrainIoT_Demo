@@ -41,17 +41,17 @@ def index():
   return 'Index Page'
 
 @app.route('/loco/motor/PWM/<int:post_id>', methods=['POST'])
-def mqtt_motorpwm(post_id):
+def mqtt_motorpwm(pwm):
   mqttc.publish("loco/control/motor/power", post_id)
-  return str(post_id)
+  return str(pwm)
 
 @app.route('/loco/motor/state/<int:post_id>', methods=['POST'])
-def mqtt_motorstate(post_id):
+def mqtt_motorstate(state):
   if post_id >= 1:
     mqttc.publish("loco/control/motor/switch","on")
   else: 
     mqttc.publish("loco/control/motor/switch","off")
-  return str(post_id)
+  return str(state)
 
 # -----------------------------------------------------------------------------
 # Main function
