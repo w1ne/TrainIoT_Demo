@@ -48,7 +48,10 @@ def show_motorpwm(post_id):
 def show_motorenable(post_id):
   if post_id >= 1:
     mqttc.publish("loco/control/motor/switch","on")
-  else:
+  return str(post_id)
+
+@app.route('/loco/motor/disable/<int:post_id>', methods=['POST'])
+def show_motorenable(post_id):
     mqttc.publish("loco/control/motor/switch","off")
   return str(post_id)
 
