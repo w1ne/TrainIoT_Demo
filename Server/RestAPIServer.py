@@ -42,7 +42,7 @@ def index():
 
 @app.route('/loco/motor/PWM/<int:post_id>', methods=['POST'])
 def mqtt_motorpwm(pwm):
-  mqttc.publish("loco/control/motor/power", post_id)
+  mqttc.publish("loco/control/motor/power", pwm)
   return str(pwm)
 
 @app.route('/loco/motor/state/<int:post_id>', methods=['POST'])
