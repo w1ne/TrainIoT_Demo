@@ -40,12 +40,12 @@ app = Flask(__name__)
 def index():
   return 'Index Page'
 
-@app.route('/loco/motor/PWM/<int:post_id>', methods=['POST'])
+@app.route('/loco/motor/PWM/<int:pwm>', methods=['POST'])
 def mqtt_motorpwm(pwm):
   mqttc.publish("loco/control/motor/power", pwm)
   return str(pwm)
 
-@app.route('/loco/motor/state/<int:post_id>', methods=['POST'])
+@app.route('/loco/motor/state/<int:state>', methods=['POST'])
 def mqtt_motorstate(state):
   if post_id >= 1:
     mqttc.publish("loco/control/motor/switch","on")
