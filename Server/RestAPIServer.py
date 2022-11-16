@@ -47,7 +47,7 @@ def mqtt_motorpwm(pwm):
 
 @app.route('/loco/motor/state/<int:state>', methods=['POST'])
 def mqtt_motorstate(state):
-  if post_id >= 1:
+  if state >= 1:
     mqttc.publish("loco/control/motor/switch","on")
   else: 
     mqttc.publish("loco/control/motor/switch","off")
