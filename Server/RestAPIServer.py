@@ -3,7 +3,6 @@
 # -----------------------------------------------------------------------------
 import paho.mqtt.client as mqtt
 from flask import Flask
-app = Flask(__name__)
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
@@ -35,6 +34,8 @@ mqttc.on_connect = on_connect
 
 mqttc.loop_start()
 
+app = Flask(__name__)
+
 @app.route('/')
 def index():
   return 'Index Page'
@@ -47,9 +48,9 @@ def mqtt_motorpwm(post_id):
 @app.route('/loco/motor/state/<int:post_id>', methods=['POST'])
 def mqtt_motorstate(post_id):
   if post_id >= 1:
-    qttc.publish("loco/control/motor/switch","on")
+    mqttc.publish("loco/control/motor/switch","on")
   else: 
-    qttc.publish("loco/control/motor/switch","off")
+    mqttc.publish("loco/control/motor/switch","off")
   return str(post_id)
 
 # -----------------------------------------------------------------------------
