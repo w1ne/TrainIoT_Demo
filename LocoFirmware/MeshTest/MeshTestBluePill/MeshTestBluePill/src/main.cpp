@@ -10,6 +10,7 @@
 #define ss PA4
 #define rst PB8
 #define dio0 PB9
+#define NODE_NUMBER 0
 
 void setup() {
   //initialize Serial Monitor
@@ -39,12 +40,12 @@ int counter = 0;
 
 void loop() {
   Serial.print("Sending packet: ");
-  Serial.println(counter);
-
+ 
   //Send LoRa packet to receiver
   LoRa.beginPacket();
-  LoRa.print("hello ");
-  LoRa.print(counter);
+  LoRa.print("Node ");
+  LoRa.print(NODE_NUMBER);
+  //LoRa.print(pressure);
   LoRa.endPacket();
 
   counter++;

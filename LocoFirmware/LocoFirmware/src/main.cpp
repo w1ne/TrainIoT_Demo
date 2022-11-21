@@ -7,6 +7,7 @@
 #include <PubSubClient.h>
 #include "Wire.h"
 #include <WebServer.h>
+#include <LoRa.h>
 #include "pins.h"
 #include "motor.h"
 
@@ -14,7 +15,7 @@
 TODO refractor it and separate in different modules, too crowdy
 */
 
-#define SECURE_MQTT // Comment this line if you are not using MQTT over SSL
+//#define SECURE_MQTT // Comment this line if you are not using MQTT over SSL
 
 #ifdef SECURE_MQTT
 #include "esp_tls.h"
@@ -66,17 +67,27 @@ long lastMsg = 0;
 char msg[50];
 int value = 0;
 
+void setup_lora();
 void displayInfo();
 void sendGeo();
 void setup_wifi();
 void reconnect();
 void setClock();
 void callback(char* topic, byte* message, unsigned int length);
+void onReceive(int packetSize);
 
 // The TinyGPSPlus object
 TinyGPSPlus gps;
 // DC Motor object
 Motor dcMotor;
+
+//brake simulation, dirty hack
+bool brakeState = false;
+bool secondCarConnected = false;
+
+#define PRESSURE_NOT_CONNECTED 0.0 //mbar
+#define PRESSURE_APPLIED_BRAKES 4200.0 //mbar
+#define PRESSURE_NOT_APPLIED_BRAKES 5000.0 //mbar
 
 void setup() {
   Serial.begin(115200);
@@ -92,6 +103,7 @@ void setup() {
   INA.setMaxCurrentShunt(2.5, 0.002);
 
   setup_wifi();
+  setup_lora();
 
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
@@ -103,34 +115,31 @@ unsigned long last = 0UL;
 void loop() {
 
   dcMotor.update();
-  // This sketch displays information every time a new sentence is correctly encoded.
-  while (Serial2.available() > 0)
-  {
-    if (gps.encode(Serial2.read()))
-    {
-      displayInfo();
-      sendGeo();
-    }
-  }
 
-  if (millis() > 5000 && gps.charsProcessed() < 10)
-  {
-    Serial.println(F("No GPS detected: check wiring."));
-    while(true);
-  }
-  
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
 
   long now = millis();
-  if (now - lastMsg > 1000) {
+
+  if (now - lastMsg > 1000) 
+  {
+
+    while (Serial2.available() > 0)
+    {
+    if (gps.encode(Serial2.read()))
+      {
+        displayInfo();
+        sendGeo();
+      }
+    }
+  
     lastMsg = now;
     
     /*Ina sensor*/
     float voltage = INA.getBusVoltage();
-    float current = INA.getCurrent_mA();
+    float current = abs(INA.getCurrent_mA());
     float power = INA.getPower_mW();
     // Convert the value to a char array
     char tempString[8];
@@ -150,6 +159,77 @@ void loop() {
     Serial.print(F("Power: "));
     Serial.print(power);
     Serial.println();
+
+
+    // brake pressure simulation, use when radio is not woring
+    float pressure_one = 0.0;
+    float pressure_two = 0.0;
+
+    if (brakeState)
+    {
+      pressure_one = PRESSURE_APPLIED_BRAKES;
+      if (secondCarConnected)
+      {
+        pressure_two = PRESSURE_APPLIED_BRAKES;
+      }
+      else
+      {
+        pressure_two = PRESSURE_NOT_CONNECTED;
+      }
+    }
+    else
+    {
+      pressure_one = PRESSURE_APPLIED_BRAKES;
+      if (secondCarConnected)
+      {
+        pressure_two = PRESSURE_NOT_APPLIED_BRAKES;
+      }
+      else
+      {
+        pressure_two = PRESSURE_NOT_CONNECTED;
+      }
+    }
+
+    dtostrf(pressure_one, 1, 2, tempString);
+    client.publish("loco/brake/pressure/1/", tempString);
+    dtostrf(pressure_two, 1, 2, tempString);
+    client.publish("loco/brake/pressure/2/", tempString);
+  }
+
+  if (millis() > 5000 && gps.charsProcessed() < 10)
+  {
+    Serial.println(F("No GPS detected: check wiring."));
+    while(true);
+  }
+}
+
+void setup_lora()
+{
+  Serial.println("LoRa Receiver");
+  // 433E6
+  // put the right pin numbers or -1 for default. On my TTGO it's 5, 19, 27, 18
+  int counter = 0;
+  LoRa.setPins(RADIO_SS, RADIO_RST, RADIO_DIO0);
+
+  while (!LoRa.begin(433E6) && counter < 5) 
+  {
+    Serial.print(".");
+    counter++;
+    delay(100);
+  }
+  if (counter >= 5) 
+  {
+    // Increment readingID on every new reading
+    Serial.println("Starting LoRa failed!"); 
+  }
+  else
+  {
+    Serial.println("Lora started!"); 
+    LoRa.setSyncWord(0xF3);
+    // register the receive callback
+    LoRa.onReceive(onReceive);
+    // put the radio into receive mode
+    LoRa.receive();
   }
 }
 
@@ -306,6 +386,18 @@ void callback(char* topic, byte* message, unsigned int length) {
     int motorSpeed = messageTemp.toInt();
     dcMotor.set_speed(motorSpeed);
   }
+  if (String(topic) == "loco/control/brake/switch") {
+    Serial.print("Changing brake state to ");
+    if(messageTemp == "on"){
+      Serial.println("on");
+      brakeState = true;
+    }
+    else if(messageTemp == "off"){
+      Serial.println("off");
+      brakeState = false;
+    }
+  }
+
 }
 
 void setClock()
@@ -326,6 +418,20 @@ void setClock()
   Serial.print(asctime(&timeinfo));
 }
 
+void onReceive(int packetSize) {
+  // received a packet
+  Serial.print("Received packet '");
+
+  // read packet
+  for (int i = 0; i < packetSize; i++) {
+    Serial.print((char)LoRa.read());
+  }
+
+  // print RSSI of packet
+  Serial.print("' with RSSI ");
+  Serial.println(LoRa.packetRssi());
+}
+
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
@@ -337,6 +443,7 @@ void reconnect() {
       client.subscribe("loco/control/motor/power");
       client.subscribe("loco/control/motor/switch");
       client.subscribe("loco/control/lights/switch");
+      client.subscribe("loco/control/brake/switch");
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
