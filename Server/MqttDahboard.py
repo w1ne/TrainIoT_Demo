@@ -362,4 +362,4 @@ def displayClick(btn1, btn2, btn3, btn4):
 # Main function
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=True, host= '0.0.0.0')
